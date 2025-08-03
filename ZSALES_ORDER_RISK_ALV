@@ -1,0 +1,89 @@
+*---------------------------------------------------------------------*
+* Report  ZSALES_ORDER_RISK_SALV
+* Sales Order Risk Scoring Report (Classic Syntax)
+*---------------------------------------------------------------------*
+REPORT zsales_order_risk_salv.
+
+*--- Selection Screen for Thresholds
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE TEXT-001.
+PARAMETERS: p_high  TYPE p DECIMALS 0 DEFAULT 50000,
+            p_days  TYPE i DEFAULT 30.
+SELECTION-SCREEN END OF BLOCK b1.
+
+* Text symbols
+* 001 Risk Scoring Parameters
+
+*--- Define Order Structure
+TYPES: BEGIN OF ty_order,
+         vbeln TYPE char10,       " Sales Order No
+         kunnr TYPE char10,       " Customer
+         erdat TYPE d,            " Order Date
+         netwr TYPE p DECIMALS 2, " Net Value
+         edatu TYPE d,            " Delivery Date
+         risk  TYPE char10,       " Risk Classification
+       END OF ty_order.
+
+DATA: it_orders TYPE TABLE OF ty_order,
+      wa_order  TYPE ty_order.
+
+*---------------------------------------------------------------------*
+* INITIALIZATION - Load Sample Data (simulate VBAK/VBAP)
+*---------------------------------------------------------------------*
+INITIALIZATION.
+
+  wa_order-vbeln = '450001'. wa_order-kunnr = 'CUST01'.
+  wa_order-erdat = sy-datum - 10. wa_order-netwr = 60000.
+  wa_order-edatu = sy-datum + 20. APPEND wa_order TO it_orders.
+
+  wa_order-vbeln = '450002'. wa_order-kunnr = 'CUST02'.
+  wa_order-erdat = sy-datum - 5. wa_order-netwr = 20000.
+  wa_order-edatu = sy-datum + 40. APPEND wa_order TO it_orders.
+
+  wa_order-vbeln = '450003'. wa_order-kunnr = 'CUST03'.
+  wa_order-erdat = sy-datum - 2. wa_order-netwr = 15000.
+  wa_order-edatu = sy-datum + 10. APPEND wa_order TO it_orders.
+
+  wa_order-vbeln = '450004'. wa_order-kunnr = 'CUST04'.
+  wa_order-erdat = sy-datum - 15. wa_order-netwr = 80000.
+  wa_order-edatu = sy-datum + 60. APPEND wa_order TO it_orders.
+
+*---------------------------------------------------------------------*
+* START-OF-SELECTION
+*---------------------------------------------------------------------*
+START-OF-SELECTION.
+
+  LOOP AT it_orders INTO wa_order.
+
+    " --- Apply Risk Rules ---
+    IF wa_order-netwr > p_high.
+      wa_order-risk = 'HIGH'.
+    ELSEIF wa_order-edatu - sy-datum > p_days.
+      wa_order-risk = 'MEDIUM'.
+    ELSE.
+      wa_order-risk = 'LOW'.
+    ENDIF.
+
+    MODIFY it_orders FROM wa_order INDEX sy-tabix.
+  ENDLOOP.
+
+*---------------------------------------------------------------------*
+* DISPLAY USING SALV
+*---------------------------------------------------------------------*
+END-OF-SELECTION.
+
+  DATA lo_alv TYPE REF TO cl_salv_table.
+  DATA lx_msg TYPE REF TO cx_salv_msg.
+
+  TRY.
+      cl_salv_table=>factory(
+        IMPORTING r_salv_table = lo_alv
+        CHANGING  t_table      = it_orders ).
+
+      lo_alv->get_display_settings( )->set_list_header(
+        'Sales Order Risk Scoring Report' ).
+
+      lo_alv->display( ).
+
+    CATCH cx_salv_msg INTO lx_msg.
+      MESSAGE lx_msg->get_text( ) TYPE 'E'.
+  ENDTRY.
