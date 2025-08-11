@@ -39,6 +39,3 @@ This project demonstrates **practical ABAP reporting skills** using internal tab
 ![Selection Screen](images/Threshold.png)
 ![Selection Screen](images/Report.png)
 
-
-
-## 📂 Repository Structure
